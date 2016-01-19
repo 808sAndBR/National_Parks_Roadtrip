@@ -1,0 +1,137 @@
+---
+title: "Building my app"
+author: "Scott Brenstuhl"
+date: "January 13, 2016"
+output: html_document
+---
+```{r}
+library(geosphere)
+```
+First I played with k-clustering with the idea that I could check the roadtrip to all those within the cluster of the user and change the cluster number up and down to find a fit. I quickly realzized that points getting pulled to other clusters makes this approach not super reliable.
+```{r}
+clust <- kmeans(data.frame(parks_data$lat, parks_data$long),5)
+
+plotcluster(data.frame(parks_data$lat, parks_data$long), clust$cluster)
+    
+ggplot(parks_data, aes(lat, long)) +
+    geom_point()
+
+leaflet(data = parks_data) %>%
+    addTiles() %>%
+    addMarkers(~long, ~lat, popup = ~Name)
+
+my_lat <- 38.00
+my_long <- -122.00
+
+c("Me", NULL, NULL, NULL, NULL, NULL, my_lat, my_long)
+```
+
+First I want to try to build my own function to do this before looking for an existing package (because it seems more fun).
+Does this leave room for the fist closests first closest to be closer to home?
+```{r}
+
+var <-cbind(parks_data,dist = distHaversine(c(my_long,my_lat), as.matrix(parks_data[c('long','lat')])))
+sum(var$dist)
+
+matrix(parks_data$long, parks_data$lat)
+
+# Find the closest two parks to a point
+# begin and parks should be long, lat
+closest_two <- function(begin, parks){
+    distance = distHaversine(begin, parks)
+    park_df = cbind(parks_data[c('Name','lat','long')], distance)
+    closest = min(distance)
+    n = length(distance)
+    second = sort(distance, decreasing = TRUE)[n-1]
+    park_df[park_df$distance == closest | park_df$distance==second,]
+}
+
+var <- NULL
+
+for (park in parks_data$Name){
+    start = subset(parks_data, Name == park)[c('long','lat')]
+    distances = distHaversine(start, parks_data[c('long','lat')])
+    #print(c(park, c(distances)))
+    var <- rbind(var, c(park,distances))
+}
+var <- data.frame(var)
+names(var) <- c("Parks",parks_data$Name)
+names(var)
+View(var)
+# Will give distance of full trip including returning
+round_trip <- function(trip){
+    start = trip[,c('long','lat')][trip["Name"]=="Start"] %>%
+        as.numeric()
+    last_loc = tail(trip[,c('long','lat')],1) %>%
+        as.numeric()
+    sum(as.numeric(trip[,'distance'])) + distHaversine(last_loc, start)
+}
+
+trip_build <- function(trip, max_dist){
+    trip_dist = round_trip(trip)
+    if(trip_dist < max_dist){
+        #add another location
+        #trip_build(trip, max_dist)
+    }else{
+       #take away last and return trip
+        10
+    }
+}
+
+trip_build(plan,1000000)
+
+round_trip(plan)
+
+
+my_lat <- 37.767019
+my_long <- -122.421781
+
+usr_home <- c('Start', my_lat, my_long, 0)
+plan <- closest_two(c(my_long,my_lat), as.matrix(parks_data[c('long','lat')]))
+plan <- rbind(usr_home, plan)
+
+```
+
+```{r}
+var2 <- NULL
+
+for (park in parks_data$Name){
+    start = subset(parks_data, Name == park)[c('long','lat')]
+    distances = distHaversine(start, parks_data[c('long','lat')])
+    var2 <- rbind(var2, distances)
+}
+
+var2 <- data.frame(var2)
+colnames(var2) <- parks_data$Name
+rownames(var2) <-parks_data$Name
+
+
+    
+trip <- names(sorted[1:10])
+
+nn <- function(trip, start) {
+    trip = trip[!trip == start]
+    closest = var2[start,trip][which.min(var2[start,trip])]
+    remaining = trip[!trip==names(closest)]
+    list(closest= names(closest), remaining = remaining)
+}
+
+function(trip, start){ 
+    parks_remain = trip
+    ordered_trip = c("Acadia")
+    for(x in 1:(length(trip)-2)){
+        added = nn(parks_remain, ordered_trip[length(ordered_trip)])
+        parks_remain = unlist(added['remaining'],use.names = FALSE)
+        ordered_trip = c(ordered_trip, as.character(added['closest']))
+    }
+    if(parks_remain == 1){
+        ordered_trip = c(ordered_trip, parks_remain)
+    }else{
+        print('Something wrong')
+    }
+}
+ordered_trip[length(ordered_trip)]
+#test <- nn(trip, 'Great Smoky Mountains')
+
+
+```
