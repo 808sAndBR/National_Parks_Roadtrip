@@ -1,4 +1,5 @@
 library(rvest)
+library(geosphere)
 
 wiki_parks <- read_html("https://en.wikipedia.org/wiki/List_of_national_parks_of_the_Udata:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAkAAAAJCAYAAADgkQYQAAAAMElEQVR42mNgIAXY2Nj8x8cHC8AwMl9XVxe3QqwKcJmIVwFWhehW4LQSXQCnm3ABAHD6MDrmRgfrAAAAAElFTkSuQmCCnited_States")
 
@@ -38,20 +39,19 @@ parks_data$Photo <- NULL
 
 write.csv(parks_data, "data/parks.csv", row.names = FALSE)
 
-#####
-clust <- kmeans(data.frame(parks_data$lat, parks_data$long),5)
+###
+parks_data<- read.csv('data/parks.csv')
+dist_tb <- NULL
 
-plotcluster(data.frame(parks_data$lat, parks_data$long), clust$cluster)
-    
-ggplot(parks_data, aes(lat, long)) +
-    geom_point()
+for (park in parks_data$Name){
+    start = subset(parks_data, Name == park)[c('long','lat')]
+    distances = distHaversine(start, parks_data[c('long','lat')])
+    dist_tb <- rbind(dist_tb, distances)
+}
 
-leaflet(data = parks_data) %>%
-    addTiles() %>%
-    addMarkers(~long, ~lat, popup = ~Name)
+park_names <- gsub('(\\s)','_',parks_data$Name)
+colnames(dist_tb) <- park_names
+rownames(dist_tb) <- park_names
+dist_tb <- data.frame(dist_tb,check.names = FALSE)
 
-my_lat <- 38.00
-my_long <- -122.00
-
-c("Me", NULL, NULL, NULL, NULL, NULL, my_lat, my_long)
-
+write.csv(dist_tb, 'data/distances.csv')

@@ -116,22 +116,21 @@ nn <- function(trip, start) {
     list(closest= names(closest), remaining = remaining)
 }
 
-function(trip, start){ 
+plan_trip <- function(trip, start){ 
     parks_remain = trip
-    ordered_trip = c("Acadia")
+    ordered_trip = c(start)
     for(x in 1:(length(trip)-2)){
         added = nn(parks_remain, ordered_trip[length(ordered_trip)])
         parks_remain = unlist(added['remaining'],use.names = FALSE)
         ordered_trip = c(ordered_trip, as.character(added['closest']))
     }
-    if(parks_remain == 1){
+    if(length(parks_remain) == 1){
         ordered_trip = c(ordered_trip, parks_remain)
     }else{
         print('Something wrong')
     }
+    ordered_trip
 }
-ordered_trip[length(ordered_trip)]
-#test <- nn(trip, 'Great Smoky Mountains')
 
 
 ```
