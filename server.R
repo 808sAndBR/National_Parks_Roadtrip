@@ -1,33 +1,37 @@
 library(UsingR)
 library(leaflet)
-data(galton)
+library(geosphere)
 
 shinyServer(  
     function(input, output) {    
-        output$newHist <- renderPlot({  
-            hist(galton$child, xlab='child height', col='lightblue',main='Histogram')      
-            mu <- input$mu      
-            lines(c(mu, mu), c(0, 200),col="red",lwd=5)      
-            mse <- mean((galton$child - mu)^2)      
-            text(63, 150, paste("mu = ", mu))      
-            text(63, 140, paste("MSE = ", round(mse, 2)))   })
         # Read in the park to park distance data
-        distances <- read.csv('data/distances.csv', row.names = 1, check.names = FALSE)
+        distances <- read.csv('data/distances.csv', row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
         parks_data <- read.csv('data/parks.csv', check.names = FALSE, stringsAsFactors = FALSE)
         parks_data$Name <- gsub('(\\s)','_',parks_data$Name)
-
+        
+        reac <- reactiveValues()
+        
+        reac$distances <- reactive({
+            usr_distances = distHaversine(c(input$usr_long,input$usr_lat),parks_data[c('long','lat')])
+            distances = cbind('user'=usr_distances, distances)
+            distances = rbind(distances,'user'=c(0,usr_distances))
+            distances
+        })
         
         
-         
+        
         test_trip <-reactive({ 
             numTest = input$park_count
-            names(distances[1:numTest])
+            trip_parks = reac$distances()[order(reac$distances()["user"]),]["user"]
+            #trip_parks = distances[order(distances["Lassen_Volcanic"]),]["Lassen_Volcanic"]
+            #names(trip_parks[1:numTest])
+            rownames(trip_parks)[1:numTest]
         })
     
         
         nn <- function(trip, start) {
             trip = trip[!trip == start]
-            closest = distances[start,trip][which.min(distances[start,trip])]
+            closest = reac$distances()[start,trip][which.min(reac$distances()[start,trip])]
             remaining = trip[!trip==names(closest)]
             list(closest= names(closest), remaining = remaining)
         }
@@ -48,22 +52,24 @@ shinyServer(
             ordered_trip
         }
         
-        #output$testOut <- renderText(plan_trip(test_trip, input$trip_start))
+        #output$testOut <- renderText(as.character(reac$distances()))
+        reac$parks_data <- reactive({
+            usr_data = c('user','',0,'','','', input$usr_lat, input$usr_long)
+            rbind(parks_data, usr_data)
+        })
         
         trip_locs <- reactive({
             curr_trip = plan_trip(test_trip(), input$trip_start)
-            parks_data[parks_data$Name %in% curr_trip,]
+            reac$parks_data()[reac$parks_data()$Name %in% curr_trip,]
         })
         
         
         output$testOut <-renderDataTable(as.data.frame(trip_locs()))
         
-
-        
         output$mymap <- renderLeaflet({
             leaflet(data = trip_locs()) %>%
                 addTiles() %>%
-                addMarkers(~long, ~lat)
+                addMarkers(~long, ~lat, popup = ~Name)
         })
     }      
 )
