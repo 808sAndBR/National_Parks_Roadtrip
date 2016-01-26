@@ -35,7 +35,7 @@ shinyServer(
             trip_parks = reac$distances()[order(reac$distances()["user"]),]["user"]
             #trip_parks = distances[order(distances["Lassen_Volcanic"]),]["Lassen_Volcanic"]
             #names(trip_parks[1:numTest])
-            rownames(trip_parks)[1:numTest]
+            rownames(trip_parks)[1:(numTest+1)]
         })
     
         
@@ -71,7 +71,9 @@ shinyServer(
         
         trip_locs <- reactive({
             curr_trip = plan_trip(test_trip(), "user")
-            reac$parks_data()[reac$parks_data()$Name %in% curr_trip,]
+            #reac$parks_data()[reac$parks_data()$Name %in% curr_trip,]
+            trip = data.frame('order' = 0:(length(curr_trip)-1),'Name' = curr_trip)
+            merge(trip, reac$parks_data(), by = 'Name', sort = FALSE)
         })
         
         
@@ -79,12 +81,15 @@ shinyServer(
         #output$testOut <-renderTable(as.data.frame(trip_locs()))
         
         output$mymap <- renderLeaflet({
+            print(as.numeric(trip_locs()$long))
             leaflet(data = trip_locs()) %>%
                 addTiles() %>%
                 addMarkers(~long, ~lat, popup = ~Name) %>%
                 # Reactive data breaks auto-centering so this is needed
                 fitBounds(lng1 = max(trip_locs()$long),lat1 = max(trip_locs()$lat),
-                          lng2 = min(trip_locs()$long),lat2 = min(trip_locs()$lat))
+                          lng2 = min(trip_locs()$long),lat2 = min(trip_locs()$lat)) %>%
+                addPolylines(lng = as.numeric(trip_locs()$long), lat = as.numeric(trip_locs()$lat),
+                             fill = F, weight = 2, color = "#000000")
                 
         })
     }      
