@@ -16,23 +16,35 @@ shinyUI(fluidPage(
                                 br(),
                                 br(),
                                 numericInput('park_count', 'Number of Parks',
-                                            10, min = 2, max = 60)
+                                            10, min = 2, max = 59)
                             )
                         ),
                         tabPanel("Documentation",
                             br(),
                             wellPanel(
                                 p('Just enter the address or city where you
-                                would like to start your trip and the number 
-                                of parks you want to vist. Then click 
-                                "Set Start".'),
+                                  would like to start your trip and the number 
+                                  of parks you want to vist. Then click 
+                                  "Set Start".'),
                                 
-                                p('We will then show you the closest National 
-                                Parks to your start location, plot the order 
-                                to visit them with a nearest neighbor 
-                                algorithm, and show information about 
-                                the parks.')
+                                p('It will then show you the closest National 
+                                  Parks to your start location, plot the order 
+                                  to visit them with a nearest neighbor 
+                                  algorithm, and show information about 
+                                  the parks.')
                             )
+                        ),
+                        tabPanel("Notes",
+                             br(),
+                             wellPanel(
+                                 p('This currently plans your trip order based 
+                                    on the nearest location that you have not
+                                    vissited yet. This can lead to inefficient 
+                                    routes.'),
+                                   
+                                 p('This uses straight distance currently, not
+                                   driving distance.')
+                             )
                         )
                 )
             ),
