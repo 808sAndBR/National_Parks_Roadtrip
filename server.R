@@ -4,48 +4,51 @@ library(ggmap)
 
 shinyServer(  
     function(input, output) {    
-        # Read in the park to park distance data
-        distances <- read.csv('data/distances.csv', row.names = 1, check.names = FALSE, stringsAsFactors = FALSE)
-        parks_data <- read.csv('data/parks.csv', check.names = FALSE, stringsAsFactors = FALSE)
-        parks_data$Name <- gsub('(\\s)','_',parks_data$Name)
+        # Read in the park to park distance data created by Data_scraper.R
+        distances <- read.csv('data/distances.csv', row.names = 1,
+                              check.names = FALSE, stringsAsFactors = FALSE)
         
-        # To reproduce you will need to get your own google API key from the
-        # Google developers console.
-        #config <- read.csv('config.csv', stringsAsFactors = FALSE)
-        #google_key <- config$key[config$service=="Google_maps"]
+        # Read in the park information data created by Data_scraper.R
+        parks_data <- read.csv('data/parks.csv', check.names = FALSE,
+                               stringsAsFactors = FALSE)
+        # Make names usable
+        parks_data$Name <- gsub('(\\s)','_', parks_data$Name)
         
+        # Setup to append reactive values to it
         reac <- reactiveValues()
          
+        # API call to geocode user input. Returns data frame.
         reac$usr_location <- eventReactive(input$set_start,{
             reac$usr_loc <- geocode(input$usr_location)
         })
         
+        # Finds user distance to all parks and adds them to distances
         reac$distances <- reactive({
-            #usr_distances = distHaversine(c(reac$usr_loc$lon,reac$usr_loc$lat),parks_data[c('long','lat')])
-            usr_distances = distHaversine(c(reac$usr_location()$lon,reac$usr_location()$lat),parks_data[c('long','lat')])
-            #usr_distances = distHaversine(c(input$usr_long,input$usr_lat),parks_data[c('long','lat')])
+            usr_distances = distHaversine(
+                            c(reac$usr_location()$lon,
+                            reac$usr_location()$lat),
+                            parks_data[c('long','lat')])
             distances = cbind('user'=usr_distances, distances)
             distances = rbind(distances,'user'=c(0,usr_distances))
             distances
         })
         
-        
-        test_trip <-reactive({ 
-            numTest = input$park_count
+        # Returns the closest parks to the user, amount based on user input.
+        closest_parks <-reactive({ 
             trip_parks = reac$distances()[order(reac$distances()["user"]),]["user"]
-            #trip_parks = distances[order(distances["Lassen_Volcanic"]),]["Lassen_Volcanic"]
-            #names(trip_parks[1:numTest])
-            rownames(trip_parks)[1:(numTest+1)]
+            rownames(trip_parks)[1:(input$park_count + 1)]
         })
     
-        
+        # Return list of the closest location and the trip values not yet used.
         nn <- function(trip, start) {
             trip = trip[!trip == start]
             closest = reac$distances()[start,trip][which.min(reac$distances()[start,trip])]
             remaining = trip[!trip==names(closest)]
-            list(closest= names(closest), remaining = remaining)
+            list(closest = names(closest), remaining = remaining)
         }
-       
+
+        # Return locations in order of nearest neightbor 
+        # that has not been visited yet.
         plan_trip <- function(trip, start){ 
             parks_remain = trip
             ordered_trip = c(start)
@@ -61,34 +64,42 @@ shinyServer(
             }
             ordered_trip
         }
-        
-        #output$testOut <- renderText(as.character(reac$distances()))
+
+        # Add the start location to parks_data for plotting 
         reac$parks_data <- reactive({
-            #usr_data = c('user','',0,'','','', reac$usr_loc$lat, reac$usr_loc$lon)
-            usr_data = c('user','',0,'','','', reac$usr_location()$lat, reac$usr_location()$lon)
+            usr_data = c('user','',0,'','','',
+                         reac$usr_location()$lat,
+                         reac$usr_location()$lon)
             rbind(parks_data, usr_data)
         })
-        
+
+        # Create data frame of parks on the trip in order
         trip_locs <- reactive({
-            curr_trip = plan_trip(test_trip(), "user")
-            #reac$parks_data()[reac$parks_data()$Name %in% curr_trip,]
-            trip = data.frame('order' = 0:(length(curr_trip)-1),'Name' = curr_trip)
+            curr_trip = plan_trip(closest_parks(), "user")
+            trip = data.frame('Order' = 0:(length(curr_trip)-1),
+                              'Name' = curr_trip)
             merge(trip, reac$parks_data(), by = 'Name', sort = FALSE)
         })
-        
-        
-        output$testOut <-renderDataTable(as.data.frame(trip_locs()))
-        #output$testOut <-renderTable(as.data.frame(trip_locs()))
-        
+
+        output$parksTable <-renderDataTable(
+            as.data.frame(trip_locs()) %>%
+            subset(Name != 'user', 
+                   select = c(Order, Name, Description, state))
+            )
+
+        # Create map of the trip
         output$mymap <- renderLeaflet({
-            print(as.numeric(trip_locs()$long))
             leaflet(data = trip_locs()) %>%
                 addTiles() %>%
                 addMarkers(~long, ~lat, popup = ~Name) %>%
-                # Reactive data breaks auto-centering so this is needed
-                fitBounds(lng1 = max(trip_locs()$long),lat1 = max(trip_locs()$lat),
-                          lng2 = min(trip_locs()$long),lat2 = min(trip_locs()$lat)) %>%
-                addPolylines(lng = as.numeric(trip_locs()$long), lat = as.numeric(trip_locs()$lat),
+                # Reactive data breaks auto-centering so fitBounds needs set
+                fitBounds(lng1 = max(trip_locs()$long),
+                          lat1 = max(trip_locs()$lat),
+                          lng2 = min(trip_locs()$long),
+                          lat2 = min(trip_locs()$lat)) %>%
+                # Plot the route
+                addPolylines(lng = as.numeric(trip_locs()$long),
+                             lat = as.numeric(trip_locs()$lat),
                              fill = F, weight = 2, color = "#000000")
                 
         })

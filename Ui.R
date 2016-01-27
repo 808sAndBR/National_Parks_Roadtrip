@@ -1,32 +1,50 @@
 library(leaflet)
-#shinyUI(pageWithSidebar(  
+
 shinyUI(fluidPage(  
     headerPanel("Plan Your National Parks Trip!"),  
-#    sidebarLayout(
-fluidRow(
-#        sidebarPanel(
-        column(4,
-               wellPanel(
-                    textInput('usr_location', 'Where do you want to start your trip?', value = '101 Forest Ave., Palo Alto, CA'),
-                    actionButton('set_start', 'Set Start', icon("refresh")),
-                    #numericInput('usr_lat', 'My Lat', 37.767019, min = -90, max = 90),
-                    #numericInput('usr_long', 'My Long', -122.421781, min = -180, max = 180),
-                    br(),
-                    br(),
-                    numericInput('park_count', '# of Parks', 10, min = 3, max = 60)
-               )
-            ),
-    
-        #mainPanel(
-        column(8,
-            #textOutput("testOut"),
-            leafletOutput("mymap")
-        )
-    ),
     fluidRow(
-        column(12,
-        dataTableOutput('testOut')
-        #tableOutput('testOut')
-    ))
-    
-))
+            column(4,
+                   tabsetPanel(
+                        tabPanel("Input",
+                            br(),
+                            wellPanel(
+                                textInput('usr_location',
+                                       'Where do you want to start your trip?',
+                                       value = '101 Forest Ave., Palo Alto, CA'),
+                                actionButton('set_start', 'Set Start',
+                                             icon("map-marker")),
+                                br(),
+                                br(),
+                                numericInput('park_count', 'Number of Parks',
+                                            10, min = 2, max = 60)
+                            )
+                        ),
+                        tabPanel("Documentation",
+                            br(),
+                            wellPanel(
+                                p('Just enter the address or city where you
+                                would like to start your trip and the number 
+                                of parks you want to vist. Then click 
+                                "Set Start".'),
+                                
+                                p('We will then show you the closest National 
+                                Parks to your start location, plot the order 
+                                to visit them with a nearest neighbor 
+                                algorithm, and show information about 
+                                the parks.')
+                            )
+                        )
+                )
+            ),
+            column(8,
+                leafletOutput('mymap')
+            )
+        ),
+        fluidRow(
+            column(12,
+                dataTableOutput('parksTable')
+            )
+        )
+        
+    )
+)
